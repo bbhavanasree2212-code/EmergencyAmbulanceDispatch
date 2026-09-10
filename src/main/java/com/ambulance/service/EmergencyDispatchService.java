@@ -1,5 +1,11 @@
 package com.ambulance.service;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
+
 import com.ambulance.exception.AmbulanceUnavailableException;
 import com.ambulance.exception.InvalidEmergencyRequestException;
 import com.ambulance.model.Ambulance;
@@ -7,32 +13,24 @@ import com.ambulance.model.AmbulanceState;
 import com.ambulance.model.EmergencyRequest;
 import com.ambulance.model.EmergencyStatus;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.PriorityQueue;
-
 public class EmergencyDispatchService {
 
     private final List<Ambulance> ambulances = new ArrayList<>();
-
-    private final List<EmergencyRequest> history =
-            new ArrayList<>();
+    private final List<EmergencyRequest> history = new ArrayList<>();
 
     private final PriorityQueue<EmergencyRequest> waitingQueue =
             new PriorityQueue<>(
                     Comparator.comparingInt(
-                            r -> r.getEmergencyType().getPriority()));
+                            r -> r.getEmergencyType().getPriority()
+                    )
+            );
 
     private final AmbulanceAllocationService allocationService =
             new AmbulanceAllocationService();
 
     public void addAmbulance(Ambulance ambulance) {
-
         if (ambulance == null) {
-            throw new IllegalArgumentException(
-                    "Ambulance cannot be null.");
+            throw new IllegalArgumentException("Ambulance cannot be null.");
         }
 
         ambulances.add(ambulance);
@@ -45,19 +43,14 @@ public class EmergencyDispatchService {
         history.add(request);
 
         Ambulance ambulance =
-                allocationService.findBestAmbulance(
-                        request,
-                        ambulances);
+                allocationService.findBestAmbulance(request, ambulances);
 
         if (ambulance == null) {
 
             waitingQueue.offer(request);
 
-            System.out.println(
-                    "No suitable ambulance available.");
-
-            System.out.println(
-                    "Request added to waiting queue.");
+            System.out.println("No suitable ambulance available.");
+            System.out.println("Request added to waiting queue.");
 
             return;
         }
@@ -72,60 +65,53 @@ public class EmergencyDispatchService {
         if (!ambulance.isAvailable()) {
 
             throw new AmbulanceUnavailableException(
-                    "Ambulance "
-                            + ambulance.getAmbulanceId()
-                            + " is already assigned.");
+                    "Ambulance " +
+                    ambulance.getAmbulanceId() +
+                    " is already assigned."
+            );
         }
 
-        ambulance.setState(
-                AmbulanceState.DISPATCHED);
+        ambulance.setState(AmbulanceState.DISPATCHED);
 
         request.setAssignedAmbulance(ambulance);
 
-        request.setStatus(
-                EmergencyStatus.DISPATCHED);
+        request.setStatus(EmergencyStatus.DISPATCHED);
 
-        /*
-         * Assuming average ambulance speed = 40 km/h.
-         *
-         * Time in minutes =
-         * Distance / Speed × 60
-         */
+        // Assumption:
+        // Average ambulance speed = 40 km/h
+        // Time = Distance / Speed * 60
         double arrivalTime =
-                ambulance.getCurrentDistance()
-                        / 40.0 * 60.0;
+                ambulance.getCurrentDistance() / 40.0 * 60.0;
 
-        request.setEstimatedArrivalTime(
-                arrivalTime);
+        request.setEstimatedArrivalTime(arrivalTime);
 
         System.out.println(
-                "Ambulance "
-                        + ambulance.getAmbulanceId()
-                        + " assigned to Patient "
-                        + request.getPatientId());
+                "Ambulance " +
+                ambulance.getAmbulanceId() +
+                " assigned to Patient " +
+                request.getPatientId()
+        );
 
         System.out.printf(
                 "Estimated arrival time: %.2f minutes%n",
-                arrivalTime);
+                arrivalTime
+        );
     }
 
     public void updateAmbulanceState(
             String ambulanceId,
             AmbulanceState newState) {
 
-        Ambulance ambulance =
-                findAmbulance(ambulanceId);
+        Ambulance ambulance = findAmbulance(ambulanceId);
 
         ambulance.setState(newState);
 
         EmergencyRequest activeRequest =
                 history.stream()
                         .filter(r ->
-                                r.getAssignedAmbulance()
-                                        == ambulance)
+                                r.getAssignedAmbulance() == ambulance)
                         .filter(r ->
-                                r.getStatus()
-                                        != EmergencyStatus.COMPLETED)
+                                r.getStatus() != EmergencyStatus.COMPLETED)
                         .findFirst()
                         .orElse(null);
 
@@ -134,33 +120,27 @@ public class EmergencyDispatchService {
             switch (newState) {
 
                 case EN_ROUTE:
-
                     activeRequest.setStatus(
-                            EmergencyStatus.EN_ROUTE);
-
+                            EmergencyStatus.EN_ROUTE
+                    );
                     break;
 
                 case PATIENT_PICKED_UP:
-
                     activeRequest.setStatus(
-                            EmergencyStatus.PATIENT_PICKED_UP);
-
+                            EmergencyStatus.PATIENT_PICKED_UP
+                    );
                     break;
 
                 case HOSPITAL_ARRIVED:
-
                     activeRequest.setStatus(
-                            EmergencyStatus.HOSPITAL_ARRIVED);
-
+                            EmergencyStatus.HOSPITAL_ARRIVED
+                    );
                     break;
 
                 case AVAILABLE:
-
                     activeRequest.setStatus(
-                            EmergencyStatus.COMPLETED);
-
-                    allocateWaitingRequest();
-
+                            EmergencyStatus.COMPLETED
+                    );
                     break;
 
                 default:
@@ -185,7 +165,8 @@ public class EmergencyDispatchService {
         Ambulance ambulance =
                 allocationService.findBestAmbulance(
                         selectedRequest,
-                        ambulances);
+                        ambulances
+                );
 
         if (ambulance != null) {
 
@@ -193,7 +174,8 @@ public class EmergencyDispatchService {
 
             dispatch(
                     selectedRequest,
-                    ambulance);
+                    ambulance
+            );
         }
     }
 
@@ -208,7 +190,9 @@ public class EmergencyDispatchService {
                 .orElseThrow(() ->
                         new AmbulanceUnavailableException(
                                 "Ambulance not found: "
-                                        + ambulanceId));
+                                + ambulanceId
+                        )
+                );
     }
 
     private void validateRequest(
@@ -217,56 +201,58 @@ public class EmergencyDispatchService {
         if (request == null) {
 
             throw new InvalidEmergencyRequestException(
-                    "Emergency request cannot be null.");
+                    "Emergency request cannot be null."
+            );
         }
 
-        if (request.getPatientId() == null
-                || request.getPatientId().isBlank()) {
+        if (request.getPatientId() == null ||
+                request.getPatientId().isBlank()) {
 
             throw new InvalidEmergencyRequestException(
-                    "Patient ID is required.");
+                    "Patient ID is required."
+            );
         }
 
         if (request.getEmergencyType() == null) {
 
             throw new InvalidEmergencyRequestException(
-                    "Emergency type is required.");
+                    "Emergency type is required."
+            );
         }
 
-        if (request.getPickupLocation() == null
-                || request.getPickupLocation().isBlank()) {
+        if (request.getPickupLocation() == null ||
+                request.getPickupLocation().isBlank()) {
 
             throw new InvalidEmergencyRequestException(
-                    "Pickup location is required.");
+                    "Pickup location is required."
+            );
         }
 
-        if (request.getDestinationHospital() == null
-                || request.getDestinationHospital().isBlank()) {
+        if (request.getDestinationHospital() == null ||
+                request.getDestinationHospital().isBlank()) {
 
             throw new InvalidEmergencyRequestException(
-                    "Destination hospital is required.");
+                    "Destination hospital is required."
+            );
         }
 
         if (request.getEstimatedDistance() <= 0) {
 
             throw new InvalidEmergencyRequestException(
-                    "Distance must be greater than zero.");
+                    "Distance must be greater than zero."
+            );
         }
     }
 
     public List<EmergencyRequest> getHistory() {
-
         return Collections.unmodifiableList(history);
     }
 
     public int getWaitingQueueSize() {
-
         return waitingQueue.size();
     }
 
     public List<Ambulance> getAmbulances() {
-
-        return Collections.unmodifiableList(
-                ambulances);
+        return Collections.unmodifiableList(ambulances);
     }
 }
